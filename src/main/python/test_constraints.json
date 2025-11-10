@@ -1,0 +1,53 @@
+{
+  "stocks": [
+    {
+      "symbol": "005930.KS",
+      "name": "삼성전자",
+      "quantity": 10,
+      "currentPrice": 70000,
+      "purchasePrice": 65000,
+      "investmentAmount": 700000,
+      "riskLevel": 3
+    },
+    {
+      "symbol": "AAPL",
+      "name": "Apple Inc.",
+      "quantity": 5,
+      "currentPrice": 180,
+      "purchasePrice": 170,
+      "investmentAmount": 900,
+      "riskLevel": 4
+    },
+    {
+      "symbol": "NVDA",
+      "name": "NVIDIA Corporation",
+      "quantity": 3,
+      "currentPrice": 450,
+      "purchasePrice": 400,
+      "investmentAmount": 1350,
+      "riskLevel": 6
+    },
+    {
+      "symbol": "TSLA",
+      "name": "Tesla Inc.",
+      "quantity": 2,
+      "currentPrice": 250,
+      "purchasePrice": 230,
+      "investmentAmount": 500,
+      "riskLevel": 7
+    }
+  ],
+  "totalInvestment": 10000000,
+  "targetRiskLevel": 5,
+  "useRealData": true,
+  "constraints": {
+    "005930.KS": {
+      "min": 0.3,
+      "max": 0.6
+    },
+    "AAPL": {
+      "min": 0.1,
+      "max": 0.3
+    }
+  }
+}
