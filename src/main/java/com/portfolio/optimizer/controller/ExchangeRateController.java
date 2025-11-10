@@ -27,8 +27,8 @@ public class ExchangeRateController {
         }
 
         boolean isValid() {
-            // 10분간 캐시 유지 (600000ms)
-            return (System.currentTimeMillis() - timestamp) < 600000;
+            // 1시간간 캐시 유지 (3600000ms) - API 호출 제한 방지
+            return (System.currentTimeMillis() - timestamp) < 3600000;
         }
     }
 
@@ -96,7 +96,16 @@ public class ExchangeRateController {
 
         } catch (Exception e) {
             log.error("❌ 환율 조회 오류: {}", e.getMessage());
+            
+            // API 호출 실패 시, 이전 캐시가 있으면 그것을 사용 (만료되었어도)
+            if (cached != null) {
+                log.warn("⚠️ API 실패, 만료된 캐시 사용: {}", cached.rate);
+                return createResponse(true, cached.rate, from, to, "만료된 캐시 사용 (API 제한)");
+            }
+            
             double defaultRate = getDefaultRate(from, to);
+            // 기본값도 캐시에 저장하여 반복 호출 방지
+            rateCache.put(cacheKey, new ExchangeRateCache(defaultRate));
             return createResponse(false, defaultRate, from, to, "오류 발생, 기본값 사용");
         }
     }

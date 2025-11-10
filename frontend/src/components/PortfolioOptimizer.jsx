@@ -49,7 +49,7 @@ const PortfolioOptimizer = () => {
     };
 
     fetchExchangeRate();
-    const interval = setInterval(fetchExchangeRate, 600000); // 10분마다 갱신
+    const interval = setInterval(fetchExchangeRate, 3600000); // 1시간마다 갱신 (API 제한 방지)
     return () => clearInterval(interval);
   }, []);
 
