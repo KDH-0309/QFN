@@ -269,11 +269,19 @@ const PortfolioOptimizer = () => {
     }
 
     try {
-      await axios.post('/api/portfolio/save', {
+      // 백엔드 PortfolioDto 형식에 맞게 데이터 변환
+      const portfolioData = {
         name: saveName,
-        stocks: stocks,
-        optimizationResult: optimizationResult
-      });
+        assets: stocks.map(stock => ({
+          ticker: stock.symbol,
+          name: stock.name,
+          quantity: stock.quantity,
+          purchasePrice: stock.purchasePrice,
+          currentPrice: stock.currentPrice
+        }))
+      };
+
+      await axios.post('/api/portfolios', portfolioData);
       
       alert('포트폴리오가 저장되었습니다.');
       setShowSaveModal(false);
@@ -697,20 +705,29 @@ const PortfolioOptimizer = () => {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="mt-4 space-y-2">
-                  {stocks.map((stock, index) => (
-                    <div key={index} className="flex justify-between items-center p-2 bg-muted rounded-lg border border-border">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded"
-                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                        />
-                        <span className="text-sm font-medium text-card-foreground">{stock.name}</span>
+                  {stocks.map((stock, index) => {
+                    const totalCurrentValue = stocks.reduce((sum, s) => sum + s.quantity * s.currentPrice, 0);
+                    const stockValue = stock.quantity * stock.currentPrice;
+                    const percentage = (stockValue / totalCurrentValue) * 100;
+                    
+                    return (
+                      <div key={index} className="flex justify-between items-center p-2 bg-muted rounded-lg border border-border">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded"
+                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                          />
+                          <span className="text-sm font-medium text-card-foreground">{stock.name}</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-card-foreground">{percentage.toFixed(1)}%</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatCurrency(stockValue)}
+                          </p>
+                        </div>
                       </div>
-                      <span className="text-sm font-bold text-card-foreground">
-                        {((stock.quantity * stock.currentPrice / stocks.reduce((sum, s) => sum + s.quantity * s.currentPrice, 0)) * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
