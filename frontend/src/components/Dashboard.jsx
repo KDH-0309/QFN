@@ -59,10 +59,11 @@ const Dashboard = () => {
   });
   
   // 최적화 결과 관리
-  const [savedOptimizations, setSavedOptimizations] = useState(() => {
-    const saved = localStorage.getItem('savedOptimizations');
-    return saved ? JSON.parse(saved) : [];
-  });
+  // 최적화 결과 관리 (localStorage는 더 이상 사용하지 않음)
+  const [savedOptimizations, setSavedOptimizations] = useState([]);
+  
+  // 서버 포트폴리오 관리
+  const [savedPortfolios, setSavedPortfolios] = useState([]);
 
   // 환율 관리
   const [exchangeRate, setExchangeRate] = useState(() => {
@@ -99,6 +100,20 @@ const Dashboard = () => {
   // 환율 조회 (10분마다 갱신)
   useEffect(() => {
     if (!isAuthenticated) return;
+
+    // 서버에서 저장된 포트폴리오 불러오기
+    const fetchPortfolios = async () => {
+      try {
+        const response = await fetch('http://localhost:8080/api/portfolios');
+        const data = await response.json();
+        setSavedPortfolios(data);
+        console.log('📂 저장된 포트폴리오:', data.length, '개');
+      } catch (error) {
+        console.error('포트폴리오 조회 실패:', error);
+      }
+    };
+
+    fetchPortfolios();
 
     const fetchExchangeRate = async () => {
       try {
@@ -597,24 +612,43 @@ const Dashboard = () => {
 
       {/* 저장된 최적화 결과 */}
       <div className="bg-white rounded-xl shadow-md p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">저장된 최적화 결과</h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-4">저장된 포트폴리오</h2>
         
-        {savedOptimizations.length === 0 ? (
+        {savedPortfolios.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
-            <p>아직 저장된 최적화 결과가 없습니다.</p>
-            <p className="text-sm mt-2">최적화를 실행하고 결과를 저장해보세요.</p>
+            <p>아직 저장된 포트폴리오가 없습니다.</p>
+            <p className="text-sm mt-2">포트폴리오를 생성하고 저장해보세요.</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {savedOptimizations.map((opt) => (
-              <div key={opt.id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+            {savedPortfolios.map((portfolio) => {
+              const totalValue = portfolio.assets.reduce((sum, asset) => 
+                sum + (asset.currentPrice * asset.quantity), 0
+              );
+              const totalCost = portfolio.assets.reduce((sum, asset) => 
+                sum + (asset.purchasePrice * asset.quantity), 0
+              );
+              const profitLoss = totalValue - totalCost;
+              const profitRate = totalCost > 0 ? ((profitLoss / totalCost) * 100).toFixed(2) : 0;
+              
+              return (
+              <div key={portfolio.id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <h3 className="font-semibold text-gray-900">{opt.name}</h3>
-                    <p className="text-sm text-gray-600">{new Date(opt.date).toLocaleString('ko-KR')}</p>
+                    <h3 className="font-semibold text-gray-900">{portfolio.name}</h3>
+                    <p className="text-sm text-gray-600">{new Date(portfolio.createdAt).toLocaleString('ko-KR')}</p>
                   </div>
                   <button
-                    onClick={() => handleDeleteOptimization(opt.id)}
+                    onClick={async () => {
+                      try {
+                        await fetch(`http://localhost:8080/api/portfolios/${portfolio.id}`, {
+                          method: 'DELETE'
+                        });
+                        setSavedPortfolios(savedPortfolios.filter(p => p.id !== portfolio.id));
+                      } catch (error) {
+                        console.error('포트폴리오 삭제 실패:', error);
+                      }
+                    }}
                     className="text-red-600 hover:text-red-800"
                   >
                     <XCircle size={18} />
@@ -622,36 +656,39 @@ const Dashboard = () => {
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
-                    <p className="text-gray-600">예상 수익률</p>
-                    <p className="font-semibold text-green-600">{opt.expectedReturn}%</p>
+                    <p className="text-gray-600">평가금액</p>
+                    <p className="font-semibold text-blue-600">₩{Math.round(totalValue).toLocaleString()}</p>
                   </div>
                   <div>
-                    <p className="text-gray-600">위험도</p>
-                    <p className="font-semibold text-orange-600">{opt.riskLevel}/10</p>
+                    <p className="text-gray-600">투자금액</p>
+                    <p className="font-semibold text-gray-600">₩{Math.round(totalCost).toLocaleString()}</p>
                   </div>
                   <div>
-                    <p className="text-gray-600">샤프 지수</p>
-                    <p className="font-semibold text-purple-600">{opt.sharpeRatio}</p>
+                    <p className="text-gray-600">손익</p>
+                    <p className={`font-semibold ${profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {profitLoss >= 0 ? '+' : ''}₩{Math.round(profitLoss).toLocaleString()} ({profitRate}%)
+                    </p>
                   </div>
                   <div>
                     <p className="text-gray-600">종목 수</p>
-                    <p className="font-semibold text-gray-900">{opt.stockCount}개</p>
+                    <p className="font-semibold text-gray-900">{portfolio.assets.length}개</p>
                   </div>
                 </div>
-                {opt.allocation && (
+                {portfolio.assets && portfolio.assets.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-gray-200">
-                    <p className="text-sm text-gray-600 mb-2">추천 비중:</p>
+                    <p className="text-sm text-gray-600 mb-2">보유 종목:</p>
                     <div className="flex flex-wrap gap-2">
-                      {Object.entries(opt.allocation).map(([ticker, percentage]) => (
-                        <span key={ticker} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
-                          {ticker}: {percentage}%
+                      {portfolio.assets.map((asset) => (
+                        <span key={asset.ticker} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                          {asset.name} ({asset.ticker}): {asset.quantity}주
                         </span>
                       ))}
                     </div>
                   </div>
                 )}
               </div>
-            ))}
+            );
+            })}
           </div>
         )}
       </div>
