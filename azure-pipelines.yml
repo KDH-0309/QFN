@@ -1,0 +1,74 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  buildConfiguration: 'Release'
+  azureSubscription: 'YOUR_AZURE_SUBSCRIPTION'  # Azure DevOps에서 설정
+  webAppName: 'YOUR_APP_NAME'  # Azure Web App 이름
+  
+stages:
+- stage: Build
+  jobs:
+  - job: BuildBackend
+    steps:
+    # Java 설정
+    - task: UseJavaVersion@0
+      inputs:
+        versionSpec: '17'
+        jdkArchitectureOption: 'x64'
+    
+    # Maven 빌드
+    - task: Maven@3
+      inputs:
+        mavenPomFile: 'pom.xml'
+        goals: 'clean package'
+        options: '-DskipTests'
+        publishJUnitResults: false
+    
+    # 프론트엔드 빌드
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '18.x'
+    
+    - script: |
+        cd frontend
+        npm install
+        npm run build
+      displayName: 'Build Frontend'
+    
+    # 빌드된 프론트엔드를 백엔드 static 폴더로 복사
+    - task: CopyFiles@2
+      inputs:
+        sourceFolder: 'frontend/dist'
+        contents: '**'
+        targetFolder: 'build/resources/main/static'
+    
+    # 아티팩트 게시
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: 'target/*.jar'
+        ArtifactName: 'drop'
+
+- stage: Deploy
+  dependsOn: Build
+  jobs:
+  - deployment: DeployToAzure
+    environment: 'production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          # Azure Web App 배포
+          - task: AzureWebApp@1
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              appType: 'webAppLinux'
+              appName: '$(webAppName)'
+              package: '$(Pipeline.Workspace)/drop/*.jar'
+              runtimeStack: 'JAVA|17-java17'
+              startUpCommand: 'java -jar -Dspring.profiles.active=azure app.jar'

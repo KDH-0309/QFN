@@ -62,3 +62,12 @@ Thumbs.db
 
 # Compiled
 *.class
+
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+application-local.properties
+application-prod.properties
+application-azure.properties
+secrets/
